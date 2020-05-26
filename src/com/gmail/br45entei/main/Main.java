@@ -18,26 +18,17 @@
  *******************************************************************************/
 package com.gmail.br45entei.main;
 
+import com.gmail.br45entei.io.FindReplaceSearch;
+import com.gmail.br45entei.util.FileUtil;
 import com.gmail.br45entei.util.SWTUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.regex.Pattern;
 
 import org.eclipse.swt.SWT;
@@ -60,103 +51,6 @@ import org.eclipse.wb.swt.SWTResourceManager;
 
 /** @author Brian_Entei */
 public final class Main {
-	
-	/** Causes the currently executing thread to sleep (temporarily cease
-	 * execution) for the specified number of milliseconds, subject to
-	 * the precision and accuracy of system timers and schedulers. The thread
-	 * does not lose ownership of any monitors.
-	 * 
-	 * @param millis The length of time to sleep in milliseconds
-	 * @return An InterruptedException if the thread was interrupted while
-	 *         sleeping
-	 * @throws IllegalArgumentException Thrown if the value of <tt>millis</tt>
-	 *             is negative */
-	public static final InterruptedException sleep(long millis) throws IllegalArgumentException {
-		try {
-			Thread.sleep(millis);
-			return null;
-		} catch(InterruptedException ex) {
-			Thread.currentThread().interrupt();
-			return ex;
-		}
-	}
-	
-	/** Wraps the given {@link OutputStream} with a new {@link PrintStream} that
-	 * uses the given line separator.
-	 * 
-	 * @param out The output stream to wrap
-	 * @param lineSeparator The line separator that the returned PrintStream
-	 *            will use
-	 * @return The resulting PrintStream */
-	public static final PrintStream wrapOutputStream(final OutputStream out, final String lineSeparator) {
-		final String originalLineSeparator = AccessController.doPrivileged(new sun.security.action.GetPropertyAction("line.separator"));
-		try {
-			AccessController.doPrivileged(new PrivilegedAction<Void>() {
-				@Override
-				public Void run() {
-					System.setProperty("line.separator", lineSeparator);
-					return null;
-				}
-			});
-			return new PrintStream(out, true);
-		} finally {
-			System.setProperty("line.separator", originalLineSeparator);
-		}
-	}
-	
-	/** Reads and returns a single line of text from the given input stream,
-	 * using the given charset to convert the read data into a string.
-	 * 
-	 * @param in The {@link InputStream} to read the text from
-	 * @param trim Whether or not the end of the line should have any existing
-	 *            (single) carriage return character removed
-	 * @param charset The {@link Charset} to use when converting the read data
-	 *            into a {@link String}
-	 * @return The read line, or <tt><b>null</b></tt> if the end of the stream
-	 *         was reached
-	 * @throws IOException Thrown if a read error occurs */
-	public static final String readLine(InputStream in, boolean trim, Charset charset) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		int b;
-		while((b = in.read()) != -1) {
-			if(b == 10) {//LF character '\n' (line feed)
-				break;
-			}
-			baos.write(b);
-		}
-		if(b == -1 && baos.size() == 0) {
-			return null;
-		}
-		byte[] data = baos.toByteArray();
-		String line = new String(data, 0, data.length, charset);
-		return trim && line.endsWith("\r") ? line.substring(0, line.length() - 1) : line;
-	}
-	
-	/** Reads and returns a single line of text from the given input stream,
-	 * using the {@link StandardCharsets#ISO_8859_1 ISO_8859_1} standard charset
-	 * to convert the read data into a string.
-	 * 
-	 * @param in The {@link InputStream} to read the text from
-	 * @param trim Whether or not the end of the line should have any existing
-	 *            (single) carriage return character removed
-	 * @return The read line, or <tt><b>null</b></tt> if the end of the stream
-	 *         was reached
-	 * @throws IOException Thrown if a read error occurs */
-	public static final String readLine(InputStream in, boolean trim) throws IOException {
-		return readLine(in, trim, StandardCharsets.ISO_8859_1);
-	}
-	
-	/** Reads and returns a single line of text from the given input stream,
-	 * using the {@link StandardCharsets#ISO_8859_1 ISO_8859_1} standard charset
-	 * to convert the read data into a string.
-	 * 
-	 * @param in The {@link InputStream} to read the text from
-	 * @return The read line, or <tt><b>null</b></tt> if the end of the stream
-	 *         was reached
-	 * @throws IOException Thrown if a read error occurs */
-	public static final String readLine(InputStream in) throws IOException {
-		return readLine(in, true);
-	}
 	
 	protected Display display;
 	protected Shell shell;
@@ -489,6 +383,10 @@ public final class Main {
 		SWTUtil.setSize(this.stxtOutput, size);
 	}
 	
+	/** Starts the given find & replace search operation.<br>
+	 * <b>Note:</b>&nbsp;This method blocks until the operation is completed.
+	 * 
+	 * @param search The search to be performed */
 	public void startFindReplaceSearch(final FindReplaceSearch search) {
 		this.stxtFind.setEnabled(false);
 		this.stxtReplaceWith.setEnabled(false);
@@ -504,7 +402,7 @@ public final class Main {
 		this.btnStopSearch.setEnabled(true);
 		
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		try(PrintStream pr = wrapOutputStream(baos, "\n")) {
+		try(PrintStream pr = FileUtil.wrapOutputStream(baos, "\n")) {
 			final Thread searchThread = search.startSearch(pr);
 			if(searchThread != null) {
 				this.activeSearch = search;
@@ -517,7 +415,7 @@ public final class Main {
 						
 						byte[] data = baos.toByteArray();
 						String text = new String(data, 0, data.length, StandardCharsets.ISO_8859_1);
-						text = text.length() > 20000 ? text.substring(text.length() - 20000) : text;//Keep text length at or under 20000
+						text = text.length() > 20000 ? text.substring(text.length() - 20000) : text;//Keep text length at or under 20000 to prevent excessive lag and possible crashes
 						
 						if(!this.stxtOutput.getText().equals(text)) {
 							this.stxtOutput.setText(text);
@@ -557,7 +455,7 @@ public final class Main {
 			byte[] data = baos.toByteArray();
 			String text = new String(data, 0, data.length, StandardCharsets.ISO_8859_1);
 			text = text.concat("\r\n").concat(search.getResults());
-			text = text.length() > 20000 ? text.substring(text.length() - 20000) : text;//Keep text length at or under 20000
+			text = text.length() > 20000 ? text.substring(text.length() - 20000) : text;//Keep text length at or under 20000 to prevent excessive lag and possible crashes
 			if(!this.stxtOutput.getText().equals(text)) {
 				this.stxtOutput.setText(text);
 				this.stxtOutput.setSelection(text.length());
@@ -608,373 +506,6 @@ public final class Main {
 	 *         <code>false</code> otherwise */
 	public boolean isDisposed() {
 		return this.shell == null ? false : this.shell.isDisposed();
-	}
-	
-	private static final class FindReplaceSearch {
-		
-		public final File sourceFolder, destinationFolder;
-		public final boolean onlyCopyFilesContainingSearchStrings, recursive,
-				onlyConsiderTextFiles;
-		public final String[] findStrings, replaceStrings;
-		
-		public final List<String> validFileExtensions = new ArrayList<>(Arrays.asList(".txt",//
-				".rtf",//
-				".log",//
-				".properties",//
-				".classpath",//
-				".project",//
-				".java",//
-				".html",//
-				".css",//
-				".csv",//
-				".xml",//
-				".php",//
-				".c",//
-				".h",//
-				".cmd",//
-				".bat",//
-				".com"));
-		
-		private volatile Thread thread = null;
-		private volatile boolean running = false, paused = false;
-		
-		private volatile int filesCopied, searchReplacementsPerformed,
-				filesSkipped, foldersTraversed, filesSearched, searchesSkipped,
-				fileReadsFailed, fileWritesFailed, fileCopiesFailed;
-		
-		public FindReplaceSearch(File sourceFolder, File destinationFolder, boolean onlyCopyFilesContainingSearchStrings, boolean recursive, boolean onlyConsiderTextFiles, String[] findStrings, String[] replaceStrings) {
-			this.sourceFolder = sourceFolder;
-			this.destinationFolder = destinationFolder;
-			this.onlyCopyFilesContainingSearchStrings = onlyCopyFilesContainingSearchStrings;
-			this.recursive = recursive;
-			this.onlyConsiderTextFiles = onlyConsiderTextFiles;
-			this.findStrings = findStrings;
-			this.replaceStrings = replaceStrings;
-		}
-		
-		public String getResults() {
-			return new StringBuilder()//
-					.append(String.format("Folders Traversed: %s\r\n", Integer.toString(this.foldersTraversed)))//
-					.append(String.format("Files Searched: %s\r\n", Integer.toString(this.filesSearched)))//
-					.append(String.format("Search Replacements Performed: %s\r\n", Integer.toString(this.searchReplacementsPerformed)))//
-					.append(String.format("Searches Skipped: %s\r\n", Integer.toString(this.searchesSkipped)))//
-					.append(String.format("Files Skipped: %s\r\n", Integer.toString(this.filesSkipped)))//
-					.append(String.format("Files Copied: %s\r\n", Integer.toString(this.filesCopied)))//
-					.append(String.format("File Copies Failed: %s\r\n", Integer.toString(this.fileCopiesFailed)))//
-					.append(String.format("File Reads Failed: %s\r\n", Integer.toString(this.fileReadsFailed)))//
-					.append(String.format("File Writes Failed: %s\r\n", Integer.toString(this.fileWritesFailed)))//
-					.toString();
-		}
-		
-		protected final boolean copy(File src, File dest, PrintStream pr) {
-			if(src.equals(dest)) {
-				this.filesSkipped++;
-				pr.println(String.format("Skipping copy of file \"%s\" as it is the same as the destination: ", src.getAbsolutePath()));
-				return true;
-			}
-			try(FileInputStream in = new FileInputStream(src)) {
-				try(FileOutputStream out = new FileOutputStream(dest)) {
-					byte[] b = new byte[4096];
-					int len;
-					while((len = in.read(b)) != -1) {
-						out.write(b, 0, len);
-						
-						while(this.paused) {
-							sleep(10L);
-						}
-						
-					}
-					out.flush();
-					this.filesCopied++;
-					return true;
-				} catch(IOException ex) {
-					this.fileWritesFailed++;
-					pr.print(String.format("Failed to write to destination file \"%s\": ", dest.getAbsolutePath()));
-					System.err.print(String.format("Failed to write to destination file \"%s\": ", dest.getAbsolutePath()));
-					ex.printStackTrace(pr);
-					ex.printStackTrace(System.err);
-					pr.flush();
-					System.err.flush();
-				}
-			} catch(IOException ex) {
-				this.fileReadsFailed++;
-				pr.print(String.format("Failed to read from source file \"%s\": ", src.getAbsolutePath()));
-				System.err.print(String.format("Failed to read from source file \"%s\": ", src.getAbsolutePath()));
-				ex.printStackTrace(pr);
-				ex.printStackTrace(System.err);
-				pr.flush();
-				System.err.flush();
-			}
-			this.fileCopiesFailed++;
-			return false;
-		}
-		
-		public void findAndReplace(File src, File dest, PrintStream pr) {
-			if(this.findStrings.length == 0) {
-				pr.println(String.format("Skipping search within file \"%s\" due to lack of search strings...", src.getAbsolutePath()));
-				this.searchesSkipped++;
-				this.copy(src, dest, pr);
-				return;
-			}
-			pr.println(String.format("Searching within file \"%s\"...", src.getAbsolutePath()));
-			
-			List<String> lines = new ArrayList<>();
-			try(FileInputStream in = new FileInputStream(src)) {
-				String line;
-				while((line = readLine(in)) != null) {
-					lines.add(line);
-					
-					while(this.paused) {
-						sleep(10L);
-					}
-					
-				}
-				this.filesSearched++;
-			} catch(IOException ex) {
-				this.fileReadsFailed++;
-				pr.print(String.format("Failed to read source file \"%s\": ", src.getAbsolutePath()));
-				System.err.print(String.format("Failed to read source file \"%s\": ", src.getAbsolutePath()));
-				ex.printStackTrace(pr);
-				ex.printStackTrace(System.err);
-				pr.flush();
-				System.err.flush();
-				return;
-			}
-			
-			List<String> replacedLines = new ArrayList<>();
-			boolean foundAnyMatches = false;
-			int lineNum = 1, numLines = lines.size();
-			for(String line : lines) {
-				for(int i = 0; i < this.findStrings.length; i++) {
-					String searchString = this.findStrings[i];
-					boolean ignoreCase = searchString.startsWith("(?i)");
-					searchString = ignoreCase ? searchString.substring(4) : searchString;
-					String replacementString = i < this.replaceStrings.length ? this.replaceStrings[i] : "%s";
-					
-					//TODO re-do this while loop so that it scans along the line, replacing each instance separately, instead of all of them in one go or none of them ...
-					
-					int index, lastIndex = -1;
-					while((index = ignoreCase ? line.toLowerCase().indexOf(searchString.toLowerCase()) : line.indexOf(searchString)) != -1 && index > lastIndex) {
-						lastIndex = index;
-						foundAnyMatches = true;
-						this.searchReplacementsPerformed++;
-						
-						String target = line.substring(index, index + searchString.length());
-						String replacement = replacementString.replace("%s", target);
-						
-						String before = line;
-						line = line.replace(target, replacement);
-						String after = line;
-						
-						pr.println(String.format("\tFound \"%s\" in line # %s/%s;\n\t\tLine before: \"%s\";\n\t\tResulting line: \"%s\";", target, Integer.toString(lineNum), Integer.toString(numLines), before, after));
-						
-						while(this.paused) {
-							sleep(10L);
-						}
-						
-					}
-					
-					while(this.paused) {
-						sleep(10L);
-					}
-					
-				}
-				
-				replacedLines.add(line);
-				
-				while(this.paused) {
-					sleep(10L);
-				}
-				
-				lineNum++;
-			}
-			
-			if(this.onlyCopyFilesContainingSearchStrings && !foundAnyMatches) {
-				pr.println(String.format("\tSkipping copy of file \"%s\" as it does not contain any of the search-strings...", src.getAbsolutePath()));
-				this.filesSkipped++;
-				return;
-			}
-			if(!foundAnyMatches && !src.equals(dest)) {
-				pr.println(String.format("\tPerforming byte-copy instead of line-by-line copy of file \"%s\" as it does not contain any of the search-strings.", src.getAbsolutePath()));
-				this.copy(src, dest, pr);
-				return;
-			}
-			if(!foundAnyMatches && src.equals(dest)) {
-				pr.println(String.format("\tSkipping copy of file \"%s\" as it does not contain any of the search-strings, and is the same file as the destination.", src.getAbsolutePath()));
-				this.filesSkipped++;
-				return;
-			}
-			
-			//Reading the source file and writing to the destination file has been separated out due to the possibility of the user selecting the same source directory as the destination,
-			//thereby causing the srcFile and destFile to be the same file! I have intentionally allowed this possibility and worked around it to allow the user to just do an in-place replacement without having to actually copy the files.
-			
-			pr.println(String.format("\tCopying file \"%s\" to destination file \"%s\" line-by-line...", src.getAbsolutePath(), dest.getAbsolutePath()));
-			try(PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(dest), StandardCharsets.ISO_8859_1), true)) {
-				for(String line : replacedLines) {
-					out.println(line);
-				}
-				out.flush();
-				this.filesCopied++;
-			} catch(IOException ex) {
-				this.fileWritesFailed++;
-				pr.print(String.format("Failed to write to destination file \"%s\": ", dest.getAbsolutePath()));
-				System.err.print(String.format("Failed to write to destination file \"%s\": ", dest.getAbsolutePath()));
-				ex.printStackTrace(pr);
-				ex.printStackTrace(System.err);
-				pr.flush();
-				System.err.flush();
-			}
-		}
-		
-		public boolean isSearchPaused() {
-			return this.paused;
-		}
-		
-		public FindReplaceSearch pauseSearch() {
-			this.paused = true;
-			return this;
-		}
-		
-		public FindReplaceSearch resumeSearch() {
-			this.paused = false;
-			return this;
-		}
-		
-		public FindReplaceSearch stopSearch() {
-			Display display;
-			while(this.thread != null && this.thread.isAlive()) {
-				this.running = false;
-				this.paused = false;
-				
-				display = Display.getCurrent();
-				if(display != null && !display.isDisposed()) {
-					if(!display.readAndDispatch()) {
-						sleep(10L);
-					}
-				} else {
-					sleep(10L);
-				}
-			}
-			this.thread = null;
-			return this;
-		}
-		
-		public Thread startSearch(final PrintStream pr) {
-			if(this.thread != null && this.thread.isAlive()) {
-				return this.thread;
-			}
-			if(this.findStrings.length == 0 && this.onlyCopyFilesContainingSearchStrings) {
-				pr.println("Skipping entire operation due to incompatible settings \"onlyCopyFilesContainingSearchStrings\" and <blank search strings>...");
-				pr.flush();
-				return null;
-			}
-			this.running = true;
-			this.paused = false;
-			this.filesCopied = this.searchReplacementsPerformed = this.filesSkipped = this.foldersTraversed = //
-					this.filesSearched = this.fileReadsFailed = this.fileWritesFailed = this.fileCopiesFailed = 0;
-			
-			this.thread = new Thread(() -> {
-				String srcPath = this.sourceFolder.getAbsolutePath();
-				srcPath = srcPath.endsWith(File.separator) ? srcPath.substring(0, srcPath.length() - 1) : srcPath;
-				String destPath = this.destinationFolder.getAbsolutePath();
-				destPath = destPath.endsWith(File.separator) ? destPath.substring(0, destPath.length() - 1) : destPath;
-				final ConcurrentLinkedDeque<File> files;
-				{
-					File[] children = this.sourceFolder.listFiles();
-					files = children == null ? new ConcurrentLinkedDeque<>() : new ConcurrentLinkedDeque<>(Arrays.asList(children));
-					if(children != null) {
-						this.foldersTraversed++;
-					}
-				}
-				int i = -1;
-				File file;
-				while(this.running && (file = files.poll()) != null) {
-					i++;
-					if(file.isDirectory()) {
-						if(!this.recursive) {
-							continue;
-						}
-						
-						File[] children = file.listFiles();
-						if(children != null) {
-							this.foldersTraversed++;
-							files.addAll(Arrays.asList(children));
-						}
-						continue;
-					}
-					while(this.paused) {
-						sleep(10L);
-					}
-					
-					String path = file.getAbsolutePath();
-					path = path.startsWith(srcPath) ? path.substring(srcPath.length()) : path;
-					
-					if(this.onlyConsiderTextFiles) {
-						String name = file.getName();
-						boolean isValidExtension = false;
-						if(name.contains(".")) {
-							for(String validExtension : this.validFileExtensions) {
-								isValidExtension |= name.toLowerCase().endsWith(validExtension.toLowerCase());
-								if(isValidExtension) {
-									break;
-								}
-							}
-							if(!isValidExtension) {
-								if(!this.onlyCopyFilesContainingSearchStrings) {
-									pr.println(String.format("Performing byte-copy of non-text file \"%s\"...", path));
-									File dest = new File(destPath.concat(path.startsWith(File.separator) ? path : File.separator.concat(path)));
-									File parent = dest.getParentFile();
-									if(parent != null) {
-										parent.mkdirs();
-									}
-									this.copy(file, dest, pr);
-								} else {
-									pr.println(String.format("Skipping search within and copy of non-text file \"%s\"...", path));
-									this.filesSkipped++;
-									this.searchesSkipped++;
-								}
-								continue;
-							}
-						}
-					}
-					
-					path = destPath.concat(path.startsWith(File.separator) ? path : File.separator.concat(path));
-					
-					File dest = new File(path);
-					File parent = dest.getParentFile();
-					if(parent != null) {
-						parent.mkdirs();
-					}
-					this.findAndReplace(file, dest, pr);
-					pr.flush();
-				}
-				pr.flush();
-			}, "Find/ReplaceSearchThread");
-			this.thread.setDaemon(true);
-			this.thread.start();
-			Display display;
-			while(this.thread.getState() == Thread.State.NEW) {
-				display = Display.getCurrent();
-				if(display != null && !display.isDisposed()) {
-					if(!display.readAndDispatch()) {
-						sleep(10L);
-					}
-				} else {
-					sleep(10L);
-				}
-			}
-			return this.thread;
-		}
-		
-		public Thread getSearchThread() {
-			return this.thread;
-		}
-		
-		public boolean isASearchActive() {
-			Thread thread = this.thread;
-			return thread != null && thread.isAlive();
-		}
-		
 	}
 	
 }
