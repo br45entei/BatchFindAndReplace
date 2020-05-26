@@ -220,7 +220,9 @@ public final class FindReplaceSearch {
 			while((line = FileUtil.readLine(in)) != null) {
 				lines.add(line);
 				
-				this.pauseSleep();
+				if(!this.pauseSleep()) {
+					return false;
+				}
 				
 			}
 			this.filesSearched++;
@@ -245,9 +247,60 @@ public final class FindReplaceSearch {
 				searchString = ignoreCase ? searchString.substring(4) : searchString;
 				String replacementString = i < this.replaceStrings.length ? this.replaceStrings[i] : "%s";
 				
+				List<Integer> indicies = new ArrayList<>();
+				char[] array = line.toCharArray();
+				for(int j = 0; j < array.length; j++) {
+					String check = line.length() >= j + searchString.length() ? line.substring(j, j + searchString.length()) : null;
+					if(check == null) {
+						break;
+					}
+					if(ignoreCase ? check.equalsIgnoreCase(searchString) : check.equals(searchString)) {
+						indicies.add(Integer.valueOf(j));
+						foundAnyMatches = true;
+					}
+					
+					if(!this.pauseSleep()) {
+						return false;
+					}
+				}
+				StringBuilder sb = new StringBuilder();
+				int lastIndex = 0;
+				String firstFoundTarget = null;
+				for(Integer index : indicies) {
+					int j = index.intValue();
+					for(int k = lastIndex; k < j; k++) {
+						sb.append(array[k]);
+					}
+					String target = new String(array, j, searchString.length());
+					String replacement = replacementString.replace("%s", target);
+					sb.append(replacement);
+					lastIndex = j + target.length();
+					if(firstFoundTarget == null) {
+						firstFoundTarget = target;
+					}
+					
+					if(!this.pauseSleep()) {
+						return false;
+					}
+				}
+				
+				if(firstFoundTarget != null) {
+					if(lastIndex < array.length) {
+						for(int k = lastIndex; k < array.length; k++) {
+							sb.append(array[k]);
+						}
+					}
+					
+					String before = line;
+					line = sb.toString();
+					String after = line;
+					
+					pr.println(String.format("\tFound \"%s\" in line # %s/%s;\n\t\tLine before: \"%s\";\n\t\tResulting line: \"%s\";", firstFoundTarget, Integer.toString(lineNum), Integer.toString(numLines), before, after));
+				}
+				
 				//TODO re-do this while loop so that it scans along the line, replacing each instance separately, instead of all of them in one go or none of them ...
 				
-				int index, lastIndex = -1;
+				/*int index, lastIndex = -1;
 				while((index = ignoreCase ? line.toLowerCase().indexOf(searchString.toLowerCase()) : line.indexOf(searchString)) != -1 && index > lastIndex) {
 					lastIndex = index;
 					foundAnyMatches = true;
@@ -264,15 +317,18 @@ public final class FindReplaceSearch {
 					
 					this.pauseSleep();
 					
+				}*/
+				
+				if(!this.pauseSleep()) {
+					return false;
 				}
-				
-				this.pauseSleep();
-				
 			}
 			
 			replacedLines.add(line);
 			
-			this.pauseSleep();
+			if(!this.pauseSleep()) {
+				return false;
+			}
 			
 			lineNum++;
 		}
@@ -323,11 +379,14 @@ public final class FindReplaceSearch {
 	}
 	
 	/** Causes the current thread to sleep while the current search operation is
-	 * paused. */
-	protected void pauseSleep() {
+	 * paused.
+	 * 
+	 * @return Whether or not the operation should continue running */
+	protected boolean pauseSleep() {
 		while(this.paused) {
 			CodeUtil.sleep(10L);
 		}
+		return this.running;
 	}
 	
 	/** Pauses the current search operation.
@@ -420,7 +479,9 @@ public final class FindReplaceSearch {
 					}
 					continue;
 				}
-				this.pauseSleep();
+				if(!this.pauseSleep()) {
+					break;
+				}
 				
 				String path = file.getAbsolutePath();
 				path = path.startsWith(srcPath) ? path.substring(srcPath.length()) : path;
