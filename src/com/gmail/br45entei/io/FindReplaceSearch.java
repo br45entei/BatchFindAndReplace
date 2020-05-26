@@ -208,7 +208,7 @@ public final class FindReplaceSearch {
 	 * @return True if any data was written to the destination file */
 	public boolean findAndReplace(File src, File dest, PrintStream pr) {
 		if(this.findStrings.length == 0) {
-			pr.println(String.format("Skipping search within and just byte-copying file \"%s\" due to lack of search strings...", src.getAbsolutePath()));
+			pr.println(String.format("Byte-copying file and skipping search within \"%s\" due to lack of search strings...", src.getAbsolutePath()));
 			this.searchesSkipped++;
 			return this.copy(src, dest, pr);
 		}
