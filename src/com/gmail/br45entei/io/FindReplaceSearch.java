@@ -243,6 +243,7 @@ public final class FindReplaceSearch {
 		for(String line : lines) {
 			for(int i = 0; i < this.findStrings.length; i++) {
 				String searchString = this.findStrings[i];
+				//pr.println(String.format("\tSearching for \"%s\"...", searchString));//XXX DEBUG - REMOVE/COMMENT ME
 				boolean ignoreCase = searchString.startsWith("(?i)");
 				searchString = ignoreCase ? searchString.substring(4) : searchString;
 				String replacementString = i < this.replaceStrings.length ? this.replaceStrings[i] : "%s";
@@ -276,7 +277,7 @@ public final class FindReplaceSearch {
 					sb.append(replacement);
 					this.searchReplacementsPerformed++;
 					
-					pr.println(String.format("\tFound \"%s\" in line # %s/%s; Replacing with: \"%s\";", target, Integer.toString(lineNum), Integer.toString(numLines), replacement));
+					pr.println(String.format("\tFound \"%s\"; Replacing with: \"%s\";", target, replacement));
 					
 					lastIndex = j + target.length();
 					if(firstFoundTarget == null) {
@@ -299,7 +300,7 @@ public final class FindReplaceSearch {
 					line = sb.toString();
 					String after = line;
 					
-					pr.println(String.format("\tFound \"%s\" in line # %s/%s;\n\t\tLine before: \"%s\";\n\t\tResulting line: \"%s\";", firstFoundTarget, Integer.toString(lineNum), Integer.toString(numLines), before, after));
+					pr.println(String.format("\t\tLine # %s/%s: before: \"%s\";\n\t\tLine after replacement: \"%s\";", Integer.toString(lineNum), Integer.toString(numLines), before, after));
 				}
 				
 				//TODO re-do this while loop so that it scans along the line, replacing each instance separately, instead of all of them in one go or none of them ...
