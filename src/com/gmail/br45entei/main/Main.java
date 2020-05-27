@@ -263,16 +263,27 @@ public final class Main {
 					
 					List<String> cfs = new ArrayList<>(),//	cleaned Find-Strings
 							crs = new ArrayList<>();//		cleaned Replacement-Strings
-					for(int i = 0; i < fs.size(); i++) {
-						final String searchString = fs.get(i);
+					int i = 0;
+					for(; i < fs.size(); i++) {
+						String searchString = fs.get(i);
+						searchString = searchString.endsWith("\r") ? searchString.substring(0, searchString.length() - 1) : searchString;
 						if(searchString.isEmpty() || (searchString.toLowerCase().startsWith("(?i)") && searchString.substring(4).isEmpty())) {
 							continue;
 						}
 						cfs.add(searchString);
-						if(i < rs.size()) {
-							crs.add(rs.get(i));
+						String replacementString = i < rs.size() ? rs.get(i) : null;
+						replacementString = replacementString != null && replacementString.endsWith("\r") ? replacementString.substring(0, replacementString.length() - 1) : replacementString;
+						if(replacementString != null && !(i + 1 == rs.size() ? replacementString.isEmpty() : false)) {
+							crs.add(replacementString);
 						} else {
 							crs.add("%s");
+						}
+					}
+					if(i < rs.size()) {
+						for(; i < rs.size(); i++) {
+							String unusedReplacementString = rs.get(i);
+							unusedReplacementString = unusedReplacementString.endsWith("\r") ? unusedReplacementString.substring(0, unusedReplacementString.length() - 1) : unusedReplacementString;
+							crs.add(unusedReplacementString);
 						}
 					}
 					findStrings = cfs.toArray(new String[cfs.size()]);
