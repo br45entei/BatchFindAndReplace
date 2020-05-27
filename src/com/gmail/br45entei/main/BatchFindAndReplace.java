@@ -56,7 +56,7 @@ import org.eclipse.wb.swt.SWTResourceManager;
 import etinyplugins.commons.swt.UndoRedoImpl;
 
 /** @author Brian_Entei */
-public final class Main {
+public final class BatchFindAndReplace {
 	
 	protected Display display;
 	protected Shell shell;
@@ -90,7 +90,7 @@ public final class Main {
 	protected volatile FindReplaceSearch activeSearch = null;
 	
 	/** Creates a new dialog. */
-	public Main() {
+	public BatchFindAndReplace() {
 		this.createContents();
 	}
 	
@@ -100,7 +100,7 @@ public final class Main {
 	 *            {@link Display#readAndDispatch() readAndDispatch} until the
 	 *            dialog is hidden, closed, or disposed.
 	 * @return This dialog */
-	public Main open(boolean runLoop) {
+	public BatchFindAndReplace open(boolean runLoop) {
 		this.shell.open();
 		this.shell.layout();
 		
@@ -114,7 +114,7 @@ public final class Main {
 	/** Opens this dialog.
 	 * 
 	 * @return This dialog */
-	public Main open() {
+	public BatchFindAndReplace open() {
 		return this.open(true);
 	}
 	
@@ -136,7 +136,7 @@ public final class Main {
 	
 	/** @param args Program command line arguments */
 	public static void main(String[] args) {
-		Main main = new Main();
+		BatchFindAndReplace main = new BatchFindAndReplace();
 		main.open().dispose().display.dispose();
 	}
 	
@@ -153,7 +153,7 @@ public final class Main {
 		this.shell.addControlListener(new ControlAdapter() {
 			@Override
 			public void controlResized(ControlEvent e) {
-				Main.this.updateUI();
+				BatchFindAndReplace.this.updateUI();
 			}
 		});
 		
@@ -176,9 +176,9 @@ public final class Main {
 					e.doit = false;
 					boolean shiftPressed = (e.stateMask & SWT.SHIFT) != 0;
 					if(shiftPressed) {
-						Main.this.stxtOutput.forceFocus();
+						BatchFindAndReplace.this.stxtOutput.forceFocus();
 					} else {
-						Main.this.stxtReplaceWith.forceFocus();
+						BatchFindAndReplace.this.stxtReplaceWith.forceFocus();
 					}
 				}
 			}
@@ -211,9 +211,9 @@ public final class Main {
 				if(e.keyCode == SWT.TAB) {
 					boolean shiftPressed = (e.stateMask & SWT.SHIFT) != 0;
 					if(shiftPressed) {
-						Main.this.stxtFind.forceFocus();
+						BatchFindAndReplace.this.stxtFind.forceFocus();
 					} else {
-						Main.this.btnOnlyCopyFiles.forceFocus();
+						BatchFindAndReplace.this.btnOnlyCopyFiles.forceFocus();
 					}
 				}
 			}
@@ -259,16 +259,16 @@ public final class Main {
 		this.btnBrowseSourcePath.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
-				DirectoryDialog dialog = new DirectoryDialog(Main.this.shell, SWT.NONE);
+				DirectoryDialog dialog = new DirectoryDialog(BatchFindAndReplace.this.shell, SWT.NONE);
 				dialog.setText("Choose Source Folder");
 				dialog.setMessage("Please select the folder where the Find/Replace search will take place.");
-				String checkPath = Main.this.txtSourceFolderPath.getText();
+				String checkPath = BatchFindAndReplace.this.txtSourceFolderPath.getText();
 				if(!checkPath.isEmpty() && new File(checkPath).isDirectory()) {
 					dialog.setFilterPath(checkPath);
 				}
 				
 				String path = dialog.open();
-				Main.this.txtSourceFolderPath.setText(path == null ? dialog.getFilterPath() : path);
+				BatchFindAndReplace.this.txtSourceFolderPath.setText(path == null ? dialog.getFilterPath() : path);
 			}
 		});
 		this.btnBrowseSourcePath.setBounds(this.shell.getSize().x - 101, 282, 75, 25);
@@ -287,16 +287,16 @@ public final class Main {
 		this.btnBrowseDestinationPath.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
-				DirectoryDialog dialog = new DirectoryDialog(Main.this.shell, SWT.NONE);
+				DirectoryDialog dialog = new DirectoryDialog(BatchFindAndReplace.this.shell, SWT.NONE);
 				dialog.setText("Choose Destination Folder");
 				dialog.setMessage("Please select the folder where the Find/Replace search will output files to.");
-				String checkPath = Main.this.txtDestinationFolderPath.getText();
+				String checkPath = BatchFindAndReplace.this.txtDestinationFolderPath.getText();
 				if(!checkPath.isEmpty() && new File(checkPath).isDirectory()) {
 					dialog.setFilterPath(checkPath);
 				}
 				
 				String path = dialog.open();
-				Main.this.txtDestinationFolderPath.setText(path == null ? dialog.getFilterPath() : path);
+				BatchFindAndReplace.this.txtDestinationFolderPath.setText(path == null ? dialog.getFilterPath() : path);
 			}
 		});
 		this.btnBrowseDestinationPath.setText("Browse...");
@@ -310,15 +310,15 @@ public final class Main {
 		this.btnStartFindReplaceSearch.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
-				File sourceFolder = new File(Main.this.txtSourceFolderPath.getText());
-				File destinationFolder = new File(Main.this.txtDestinationFolderPath.getText());
-				boolean onlyCopyFilesContainingSearchStrings = Main.this.btnOnlyCopyFiles.getSelection();
-				boolean recursive = Main.this.btnRecursiveFileSearch.getSelection();
-				boolean onlyConsiderTextFiles = Main.this.btnOnlyConsidertxt.getSelection();
+				File sourceFolder = new File(BatchFindAndReplace.this.txtSourceFolderPath.getText());
+				File destinationFolder = new File(BatchFindAndReplace.this.txtDestinationFolderPath.getText());
+				boolean onlyCopyFilesContainingSearchStrings = BatchFindAndReplace.this.btnOnlyCopyFiles.getSelection();
+				boolean recursive = BatchFindAndReplace.this.btnRecursiveFileSearch.getSelection();
+				boolean onlyConsiderTextFiles = BatchFindAndReplace.this.btnOnlyConsidertxt.getSelection();
 				String[] findStrings, replaceStrings;
 				{
-					List<String> fs = new ArrayList<>(Arrays.asList(Main.this.stxtFind.getText().split(Pattern.quote("\n"))));
-					List<String> rs = new ArrayList<>(Arrays.asList(Main.this.stxtReplaceWith.getText().split(Pattern.quote("\n"))));
+					List<String> fs = new ArrayList<>(Arrays.asList(BatchFindAndReplace.this.stxtFind.getText().split(Pattern.quote("\n"))));
+					List<String> rs = new ArrayList<>(Arrays.asList(BatchFindAndReplace.this.stxtReplaceWith.getText().split(Pattern.quote("\n"))));
 					
 					List<String> cfs = new ArrayList<>(),//	cleaned Find-Strings
 							crs = new ArrayList<>();//		cleaned Replacement-Strings
@@ -350,7 +350,7 @@ public final class Main {
 				}
 				
 				if(!sourceFolder.isDirectory()) {
-					MessageBox box = new MessageBox(Main.this.shell, SWT.ICON_ERROR | SWT.OK);
+					MessageBox box = new MessageBox(BatchFindAndReplace.this.shell, SWT.ICON_ERROR | SWT.OK);
 					box.setText("Error Opening Source Folder");
 					box.setMessage("Unable to open the specified source folder.\nPlease check that it exists and is accessible, and then try again.");
 					
@@ -359,7 +359,7 @@ public final class Main {
 				}
 				destinationFolder.mkdirs();
 				if(!destinationFolder.isDirectory()) {
-					MessageBox box = new MessageBox(Main.this.shell, SWT.ICON_ERROR | SWT.OK);
+					MessageBox box = new MessageBox(BatchFindAndReplace.this.shell, SWT.ICON_ERROR | SWT.OK);
 					box.setText("Error Opening Destination Folder");
 					box.setMessage("Unable to open the specified destination folder.\nPlease check that it exists( or can be created) and is accessible, and then try again.");
 					
@@ -367,7 +367,7 @@ public final class Main {
 					return;
 				}
 				
-				Main.this.startFindReplaceSearch(new FindReplaceSearch(sourceFolder, destinationFolder, onlyCopyFilesContainingSearchStrings, recursive, onlyConsiderTextFiles, findStrings, replaceStrings));
+				BatchFindAndReplace.this.startFindReplaceSearch(new FindReplaceSearch(sourceFolder, destinationFolder, onlyCopyFilesContainingSearchStrings, recursive, onlyConsiderTextFiles, findStrings, replaceStrings));
 			}
 		});
 		this.btnStartFindReplaceSearch.setBounds(10, 348, 156, 25);
@@ -379,18 +379,18 @@ public final class Main {
 		this.btnPauseSearch.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
-				FindReplaceSearch search = Main.this.activeSearch;
+				FindReplaceSearch search = BatchFindAndReplace.this.activeSearch;
 				if(search != null) {
-					if(Main.this.btnPauseSearch.getSelection()) {
+					if(BatchFindAndReplace.this.btnPauseSearch.getSelection()) {
 						search.pauseSearch();
 					} else {
 						search.resumeSearch();
 					}
 				} else {
-					Main.this.btnPauseSearch.setSelection(false);
+					BatchFindAndReplace.this.btnPauseSearch.setSelection(false);
 				}
 				
-				Main.this.btnPauseSearch.setText(Main.this.btnPauseSearch.getSelection() ? "Resume Search" : "Pause Search");
+				BatchFindAndReplace.this.btnPauseSearch.setText(BatchFindAndReplace.this.btnPauseSearch.getSelection() ? "Resume Search" : "Pause Search");
 			}
 		});
 		this.btnPauseSearch.setBounds(172, 348, 96, 25);
@@ -402,10 +402,10 @@ public final class Main {
 		this.btnStopSearch.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
-				FindReplaceSearch search = Main.this.activeSearch;
+				FindReplaceSearch search = BatchFindAndReplace.this.activeSearch;
 				if(search != null) {
-					Main.this.btnStopSearch.setEnabled(false);
-					Main.this.btnPauseSearch.setEnabled(false);
+					BatchFindAndReplace.this.btnStopSearch.setEnabled(false);
+					BatchFindAndReplace.this.btnPauseSearch.setEnabled(false);
 					search.stopSearch();
 				}
 			}
@@ -558,7 +558,7 @@ public final class Main {
 	 * @see Widget#addDisposeListener
 	 * @see Widget#removeDisposeListener
 	 * @see Widget#checkWidget */
-	public Main dispose() {
+	public BatchFindAndReplace dispose() {
 		this.shell.dispose();
 		return this;
 	}
