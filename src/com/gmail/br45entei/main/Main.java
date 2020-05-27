@@ -34,10 +34,14 @@ import java.util.regex.Pattern;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTException;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.custom.VerifyKeyListener;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.TraverseEvent;
+import org.eclipse.swt.events.TraverseListener;
+import org.eclipse.swt.events.VerifyEvent;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.DirectoryDialog;
@@ -49,13 +53,17 @@ import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Widget;
 import org.eclipse.wb.swt.SWTResourceManager;
 
+import etinyplugins.commons.swt.UndoRedoImpl;
+
 /** @author Brian_Entei */
 public final class Main {
 	
 	protected Display display;
 	protected Shell shell;
 	protected StyledText stxtFind;
+	protected UndoRedoImpl stxtFindUndoRedo;
 	protected StyledText stxtReplaceWith;
+	protected UndoRedoImpl stxtReplaceWithUndoRedo;
 	
 	protected Label lblSeparator;
 	
@@ -153,17 +161,72 @@ public final class Main {
 		lblFind.setBounds(10, 10, 40, 15);
 		lblFind.setText("Find:");
 		
+		Label lblEachSearchString = new Label(this.shell, SWT.NONE);
+		lblEachSearchString.setBounds(125, 10, 649, 15);
+		lblEachSearchString.setText("Each search-string is separated via a new line, and you can specify a case-insensitive search by starting the line with (?i).");
+		
 		this.stxtFind = new StyledText(this.shell, SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
 		this.stxtFind.setToolTipText("Enter your search-string(s) here; each one must be placed on its own line.\r\nStart the line off with (?i) to make the search case-insensitive for that search-string.");
 		this.stxtFind.setBounds(10, 31, this.shell.getSize().x - 36, 95);
+		this.stxtFindUndoRedo = new UndoRedoImpl(this.stxtFind);
+		this.stxtFind.addTraverseListener(new TraverseListener() {
+			@Override
+			public void keyTraversed(TraverseEvent e) {
+				if(e.keyCode == SWT.TAB) {
+					e.doit = false;
+					boolean shiftPressed = (e.stateMask & SWT.SHIFT) != 0;
+					if(shiftPressed) {
+						Main.this.stxtOutput.forceFocus();
+					} else {
+						Main.this.stxtReplaceWith.forceFocus();
+					}
+				}
+			}
+		});
+		this.stxtFind.addVerifyKeyListener(new VerifyKeyListener() {
+			@Override
+			public void verifyKey(VerifyEvent e) {
+				if(e.keyCode == SWT.TAB) {
+					e.doit = false;
+				}
+			}
+		});
+		SWTUtil.addTextEditorPopupMenu(this.stxtFind, this.stxtFindUndoRedo);
 		
 		Label lblReplaceWith = new Label(this.shell, SWT.NONE);
 		lblReplaceWith.setBounds(10, 132, 80, 15);
 		lblReplaceWith.setText("Replace with:");
 		
+		Label lblEachReplacementString = new Label(this.shell, SWT.NONE);
+		lblEachReplacementString.setBounds(125, 132, 649, 15);
+		lblEachReplacementString.setText("Each replacement is paired with the corresponding line above, and %s is replaced with the string found in the file.");
+		
 		this.stxtReplaceWith = new StyledText(this.shell, SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
 		this.stxtReplaceWith.setToolTipText("Enter your replacement strings here. (They must be in the same order as the search strings to make a pair)\r\nUse %s to have the matched string from the file be a part of the replacement string.");
 		this.stxtReplaceWith.setBounds(10, 153, this.shell.getSize().x - 36, 95);
+		this.stxtReplaceWithUndoRedo = new UndoRedoImpl(this.stxtReplaceWith);
+		this.stxtReplaceWith.addTraverseListener(new TraverseListener() {
+			@Override
+			public void keyTraversed(TraverseEvent e) {
+				if(e.keyCode == SWT.TAB) {
+					boolean shiftPressed = (e.stateMask & SWT.SHIFT) != 0;
+					if(shiftPressed) {
+						Main.this.stxtFind.forceFocus();
+					} else {
+						Main.this.btnOnlyCopyFiles.forceFocus();
+					}
+				}
+			}
+		});
+		this.stxtReplaceWith.addVerifyKeyListener(new VerifyKeyListener() {
+			@Override
+			public void verifyKey(VerifyEvent e) {
+				if(e.keyCode == SWT.TAB) {
+					e.doit = false;
+				}
+			}
+		});
+		SWTUtil.addTextEditorPopupMenu(this.stxtReplaceWith, this.stxtReplaceWithUndoRedo);
 		
 		this.lblSeparator = new Label(this.shell, SWT.SEPARATOR | SWT.HORIZONTAL);
 		this.lblSeparator.setBounds(10, 254, this.shell.getSize().x - 36, 2);
@@ -172,6 +235,11 @@ public final class Main {
 		this.btnOnlyCopyFiles.setToolTipText("Check this box to only copy files containing one or more of the search-strings you specified in the Find: text field above.\r\nLeave this box unchecked to copy all files with the specified folder below.");
 		this.btnOnlyCopyFiles.setBounds(10, 262, 314, 16);
 		this.btnOnlyCopyFiles.setText("Only copy files containing one or more search-strings");
+		
+		this.btnRecursiveFileSearch = new Button(this.shell, SWT.CHECK);
+		this.btnRecursiveFileSearch.setToolTipText("Check this box to search for and copy files within the subfolders (and their children etc.) of the specified folder below.");
+		this.btnRecursiveFileSearch.setBounds(330, 262, 137, 16);
+		this.btnRecursiveFileSearch.setText("Recursive file search");
 		
 		this.btnOnlyConsidertxt = new Button(this.shell, SWT.CHECK);
 		this.btnOnlyConsidertxt.setToolTipText("If checked, only files ending with the following file extensions will be searched:\r\n*.txt\r\n*.rtf\r\n*.log\r\n*.properties\r\n*.classpath\r\n*.project\r\n*.java\r\n*.html\r\n*.css\r\n*.csv\r\n*.xml\r\n*.php\r\n*.c\r\n*.h\r\n*.cmd\r\n*.bat\r\n*.com");
@@ -234,17 +302,8 @@ public final class Main {
 		this.btnBrowseDestinationPath.setText("Browse...");
 		this.btnBrowseDestinationPath.setBounds(this.shell.getSize().x - 101, 311, 75, 25);
 		
-		Label lblEachSearchString = new Label(this.shell, SWT.NONE);
-		lblEachSearchString.setBounds(125, 10, 649, 15);
-		lblEachSearchString.setText("Each search-string is separated via a new line, and you can specify a case-insensitive search by starting the line with (?i).");
-		
 		this.lblSeparator_1 = new Label(this.shell, SWT.SEPARATOR | SWT.HORIZONTAL);
 		this.lblSeparator_1.setBounds(10, 340, this.shell.getSize().x - 36, 2);
-		
-		this.btnRecursiveFileSearch = new Button(this.shell, SWT.CHECK);
-		this.btnRecursiveFileSearch.setToolTipText("Check this box to search for and copy files within the subfolders (and their children etc.) of the specified folder below.");
-		this.btnRecursiveFileSearch.setBounds(330, 262, 137, 16);
-		this.btnRecursiveFileSearch.setText("Recursive file search");
 		
 		this.btnStartFindReplaceSearch = new Button(this.shell, SWT.PUSH);
 		this.btnStartFindReplaceSearch.setToolTipText("Click to start the Find/Replace Search");
@@ -337,21 +396,6 @@ public final class Main {
 		this.btnPauseSearch.setBounds(172, 348, 96, 25);
 		this.btnPauseSearch.setText("Pause Search");
 		
-		Label lblEachReplacementString = new Label(this.shell, SWT.NONE);
-		lblEachReplacementString.setBounds(125, 132, 649, 15);
-		lblEachReplacementString.setText("Each replacement is paired with the corresponding line above, and %s is replaced with the string found in the file.");
-		
-		this.lblSeparator_2 = new Label(this.shell, SWT.SEPARATOR | SWT.HORIZONTAL);
-		this.lblSeparator_2.setBounds(10, 379, this.shell.getSize().x - 36, 2);
-		
-		this.stxtOutput = new StyledText(this.shell, SWT.BORDER | SWT.WRAP | SWT.V_SCROLL);
-		this.stxtOutput.setToolTipText("The output of the current Find/Replace Search");
-		this.stxtOutput.setSelectionForeground(SWTResourceManager.getColor(SWT.COLOR_BLACK));
-		this.stxtOutput.setSelectionBackground(SWTResourceManager.getColor(SWT.COLOR_GREEN));
-		this.stxtOutput.setForeground(SWTResourceManager.getColor(SWT.COLOR_GREEN));
-		this.stxtOutput.setBackground(SWTResourceManager.getColor(SWT.COLOR_BLACK));
-		this.stxtOutput.setBounds(10, 387, this.shell.getSize().x - 36, this.shell.getSize().y - 436);
-		
 		this.btnStopSearch = new Button(this.shell, SWT.NONE);
 		this.btnStopSearch.setToolTipText("Click to stop the Find/Replace Search");
 		this.btnStopSearch.setEnabled(false);
@@ -368,6 +412,20 @@ public final class Main {
 		});
 		this.btnStopSearch.setBounds(274, 348, 80, 25);
 		this.btnStopSearch.setText("Stop Search");
+		
+		this.lblSeparator_2 = new Label(this.shell, SWT.SEPARATOR | SWT.HORIZONTAL);
+		this.lblSeparator_2.setBounds(10, 379, this.shell.getSize().x - 36, 2);
+		
+		this.stxtOutput = new StyledText(this.shell, SWT.BORDER | SWT.WRAP | SWT.V_SCROLL | SWT.READ_ONLY);
+		this.stxtOutput.setFont(SWTResourceManager.getFont("Consolas", 8, SWT.NORMAL));
+		this.stxtOutput.setTabs(4);
+		this.stxtOutput.setToolTipText("The output of the current Find/Replace Search");
+		this.stxtOutput.setSelectionForeground(SWTResourceManager.getColor(SWT.COLOR_BLACK));
+		this.stxtOutput.setSelectionBackground(SWTResourceManager.getColor(SWT.COLOR_GREEN));
+		this.stxtOutput.setForeground(SWTResourceManager.getColor(SWT.COLOR_GREEN));
+		this.stxtOutput.setBackground(SWTResourceManager.getColor(SWT.COLOR_BLACK));
+		this.stxtOutput.setBounds(10, 387, this.shell.getSize().x - 36, this.shell.getSize().y - 436);
+		SWTUtil.addTextEditorPopupMenu(this.stxtOutput, null);
 	}
 	
 	protected void updateUI() {
