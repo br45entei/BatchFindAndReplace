@@ -415,7 +415,7 @@ public final class Main {
 						
 						byte[] data = baos.toByteArray();
 						String text = new String(data, 0, data.length, StandardCharsets.ISO_8859_1);
-						text = text.length() > 20000 ? text.substring(text.length() - 20000) : text;//Keep text length at or under 20000 to prevent excessive lag and possible crashes
+						text = text.length() > 20000 ? text.substring(text.length() - 20000) : text;//Keep text length at or under 20000
 						
 						if(!this.stxtOutput.getText().equals(text)) {
 							this.stxtOutput.setText(text);
