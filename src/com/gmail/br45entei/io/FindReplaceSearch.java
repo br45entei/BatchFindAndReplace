@@ -274,6 +274,10 @@ public final class FindReplaceSearch {
 					String target = new String(array, j, searchString.length());
 					String replacement = replacementString.replace("%s", target);
 					sb.append(replacement);
+					this.searchReplacementsPerformed++;
+					
+					pr.println(String.format("\tFound \"%s\" in line # %s/%s; Replacing with: \"%s\";", target, Integer.toString(lineNum), Integer.toString(numLines), replacement));
+					
 					lastIndex = j + target.length();
 					if(firstFoundTarget == null) {
 						firstFoundTarget = target;
