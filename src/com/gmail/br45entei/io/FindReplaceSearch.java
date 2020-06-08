@@ -484,12 +484,17 @@ public final class FindReplaceSearch {
 					}
 					continue;
 				}
-				if(!this.pauseSleep()) {
-					break;
-				}
 				
 				String path = file.getAbsolutePath();
 				path = path.startsWith(srcPath) ? path.substring(srcPath.length()) : path;
+				
+				if(!file.exists() || !file.isFile()) {
+					pr.println(String.format("Skipping unknown filesystem object \"%s\"...", path));
+					continue;
+				}
+				if(!this.pauseSleep()) {
+					break;
+				}
 				
 				if(this.onlyConsiderTextFiles) {
 					String name = file.getName();
@@ -506,10 +511,15 @@ public final class FindReplaceSearch {
 								pr.println(String.format("Performing byte-copy of non-text file \"%s\"...", path));
 								File dest = new File(destPath.concat(path.startsWith(File.separator) ? path : File.separator.concat(path)));
 								File parent = dest.getParentFile();
+								boolean parentExisted = false;
 								if(parent != null) {
+									parentExisted = parent.exists() && parent.isDirectory();
 									parent.mkdirs();
 								}
 								this.copy(file, dest, pr);
+								if(!dest.exists() && parent != null && !parentExisted) {
+									parent.delete();
+								}
 							} else {
 								pr.println(String.format("Skipping search within and copy of non-text file \"%s\"...", path));
 								this.filesSkipped++;
@@ -524,10 +534,15 @@ public final class FindReplaceSearch {
 				
 				File dest = new File(path);
 				File parent = dest.getParentFile();
+				boolean parentExisted = false;
 				if(parent != null) {
+					parentExisted = parent.exists() && parent.isDirectory();
 					parent.mkdirs();
 				}
 				this.findAndReplace(file, dest, pr);
+				if(!dest.exists() && parent != null && !parentExisted) {
+					parent.delete();
+				}
 				pr.flush();
 			}
 			pr.flush();

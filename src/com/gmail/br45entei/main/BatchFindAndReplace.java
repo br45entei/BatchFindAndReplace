@@ -47,6 +47,8 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.DirectoryDialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
@@ -108,6 +110,13 @@ public final class BatchFindAndReplace {
 			while(this.runLoop() && this.shell.isVisible()) {
 			}
 		}
+		if(this.shell.isDisposed()) {
+			FindReplaceSearch search = this.activeSearch;
+			if(search != null && search.isASearchActive()) {
+				search.stopSearch();
+				this.activeSearch = null;
+			}
+		}
 		return this;
 	}
 	
@@ -146,7 +155,7 @@ public final class BatchFindAndReplace {
 		}
 		this.display = Display.getDefault();
 		this.shell = new Shell(this.display, SWT.CLOSE | SWT.TITLE | SWT.MIN | SWT.MAX | SWT.RESIZE);
-		this.shell.setSize(800, 600);
+		this.shell.setSize(800, 620);
 		this.shell.setMinimumSize(this.shell.getSize());
 		this.shell.setText("Batch Find/Replace Text Changer & File Copier");
 		this.shell.setImages(SWTUtil.getTitleImages());
@@ -391,6 +400,7 @@ public final class BatchFindAndReplace {
 				}
 				
 				BatchFindAndReplace.this.btnPauseSearch.setText(BatchFindAndReplace.this.btnPauseSearch.getSelection() ? "Resume Search" : "Pause Search");
+				BatchFindAndReplace.this.btnPauseSearch.setToolTipText(String.format("Click to %s the Find/Replace Search", BatchFindAndReplace.this.btnPauseSearch.getSelection() ? "resume" : "pause"));
 			}
 		});
 		this.btnPauseSearch.setBounds(172, 348, 96, 25);
@@ -424,8 +434,64 @@ public final class BatchFindAndReplace {
 		this.stxtOutput.setSelectionBackground(SWTResourceManager.getColor(SWT.COLOR_GREEN));
 		this.stxtOutput.setForeground(SWTResourceManager.getColor(SWT.COLOR_GREEN));
 		this.stxtOutput.setBackground(SWTResourceManager.getColor(SWT.COLOR_BLACK));
-		this.stxtOutput.setBounds(10, 387, this.shell.getSize().x - 36, this.shell.getSize().y - 436);
+		this.stxtOutput.setBounds(10, 387, this.shell.getSize().x - 36, this.shell.getSize().y - 456);
 		SWTUtil.addTextEditorPopupMenu(this.stxtOutput, null);
+		
+		Menu menu = new Menu(this.shell, SWT.BAR);
+		this.shell.setMenuBar(menu);
+		
+		MenuItem mntmfile = new MenuItem(menu, SWT.CASCADE);
+		mntmfile.setText("&File");
+		
+		Menu menu_1 = new Menu(mntmfile);
+		mntmfile.setMenu(menu_1);
+		
+		MenuItem mntmExit = new MenuItem(menu_1, SWT.NONE);
+		mntmExit.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				BatchFindAndReplace.this.dispose();
+			}
+		});
+		mntmExit.setText("E&xit");
+		
+		MenuItem mntmhelp = new MenuItem(menu, SWT.CASCADE);
+		mntmhelp.setText("&Help");
+		
+		Menu menu_2 = new Menu(mntmhelp);
+		mntmhelp.setMenu(menu_2);
+		
+		MenuItem mntmabout = new MenuItem(menu_2, SWT.NONE);
+		mntmabout.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				MessageBox box = new MessageBox(BatchFindAndReplace.this.shell, SWT.ICON_INFORMATION | SWT.OK);
+				box.setText("About BatchFindAndReplace");
+				box.setMessage("Copyright © 2020  Brian_Entei\n" +//
+				"\n" +//
+				"This program is free software: you can redistribute it and/or\n" +//
+				"modify it under the terms of the GNU General Public License\n" +//
+				"as published by the Free Software Foundation, either version\n" +//
+				"3 of the License, or (at your option) any later version.\n" +//
+				"\n" +//
+				"This program is distributed in the hope that it will be useful,\n" +//
+				"but WITHOUT ANY WARRANTY; without even the implied\n" +//
+				"warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR\n" +//
+				"PURPOSE.  See the GNU General Public License for more\n" +//
+				"details.\n" +//
+				"\n" +//
+				"You should have received a copy of the GNU General Public\n" +//
+				"License along with this program.  If not, see\n" +//
+				"<https://www.gnu.org/licenses/>.\n" +//
+				"\n" +//
+				"\n" +//
+				"This program's source code is available at\n" +//
+				"<https://github.com/br45entei/BatchFindAndReplace>.");
+				
+				box.open();
+			}
+		});
+		mntmabout.setText("&About...");
 	}
 	
 	protected void updateUI() {
@@ -448,7 +514,7 @@ public final class BatchFindAndReplace {
 		SWTUtil.setSize(this.txtSourceFolderPath, size);
 		SWTUtil.setSize(this.txtDestinationFolderPath, size);
 		
-		size = new Point(shellSize.x - 36, shellSize.y - 436);
+		size = new Point(shellSize.x - 36, shellSize.y - 456);
 		SWTUtil.setSize(this.stxtOutput, size);
 	}
 	
@@ -484,17 +550,33 @@ public final class BatchFindAndReplace {
 						
 						byte[] data = baos.toByteArray();
 						String text = new String(data, 0, data.length, StandardCharsets.ISO_8859_1);
-						text = text.length() > 20000 ? text.substring(text.length() - 20000) : text;//Keep text length at or under 20000
+						if(text.length() > 20000) {
+							search.pauseSearch();
+							while(search.getSearchThread().getState() != Thread.State.TIMED_WAITING) {
+								if(!this.runLoop()) {
+									return;
+								}
+							}
+							data = baos.toByteArray();
+							text = new String(data, 0, data.length, StandardCharsets.ISO_8859_1);
+							text = text.length() > 20000 ? text.substring(text.length() - 20000) : text;//Keep text length at or under 20000
+							text = text.indexOf('\n') != text.lastIndexOf('\n') ? text.substring(text.indexOf('\n') + 1) : text;//Remove the first line since it's probably cut-off in the middle
+							baos.reset();
+							
+							data = text.getBytes(StandardCharsets.ISO_8859_1);
+							baos.write(data, 0, data.length);
+							search.resumeSearch();
+						}
 						
 						if(!this.stxtOutput.getText().equals(text)) {
-							this.stxtOutput.setText(text);
+							SWTUtil.setTextFor(this.stxtOutput, text);//this.stxtOutput.setText(text);
 							
 							this.display.readAndDispatch();
 							if(this.shell.isDisposed()) {
 								break;
 							}
 							
-							this.stxtOutput.setSelection(text.length());
+							//this.stxtOutput.setSelection(text.length());
 						}
 					}
 					
@@ -525,9 +607,11 @@ public final class BatchFindAndReplace {
 			String text = new String(data, 0, data.length, StandardCharsets.ISO_8859_1);
 			text = text.concat("\r\n").concat(search.getResults());
 			text = text.length() > 20000 ? text.substring(text.length() - 20000) : text;//Keep text length at or under 20000 to prevent excessive lag and possible crashes
+			text = text.indexOf('\n') != text.lastIndexOf('\n') ? text.substring(text.indexOf('\n') + 1) : text;//Remove the first line since it's probably cut-off in the middle
+			
 			if(!this.stxtOutput.getText().equals(text)) {
-				this.stxtOutput.setText(text);
-				this.stxtOutput.setSelection(text.length());
+				SWTUtil.setTextFor(this.stxtOutput, text);//this.stxtOutput.setText(text);
+				//this.stxtOutput.setSelection(text.length());
 			}
 		}
 	}
@@ -576,5 +660,4 @@ public final class BatchFindAndReplace {
 	public boolean isDisposed() {
 		return this.shell == null ? false : this.shell.isDisposed();
 	}
-	
 }
